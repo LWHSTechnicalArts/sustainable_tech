@@ -1,1 +1,1 @@
-# sustainable_tech
+# Sustainable Tech Class Example Code
