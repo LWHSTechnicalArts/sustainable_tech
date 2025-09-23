@@ -1,14 +1,22 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
+#include <time.h>
 #include "Adafruit_ThinkInk.h"
 
 // WiFi credentials
 const char* ssid = "StudentNet";
-const char* password = "WIFI_PASSWORD";
+const char* password = "PASSWORD";  // ENTER THE WIFI PASSWORD!
 
 // OpenWeatherMap API
-const char* url = "http://api.openweathermap.org/data/2.5/weather?q=94112,us&APPID=YOUR_APP_ID_HERE&units=imperial";
+const char* APPID = "YOUR APP ID"; // GET YOUR AP ID from: https://openweathermap.org/api
+const char* baseURL = "http://api.openweathermap.org/data/2.5/weather?q=94112,us&APPID=";
+const char* units = "&units=imperial";
+
+// NTP server for time synchronization
+const char* ntpServer = "pool.ntp.org";
+const long gmtOffset_sec = -8 * 3600;  // PST (adjust for your timezone)
+const int daylightOffset_sec = 3600;   // DST offset
 
 // E-ink display setup
 #ifdef ARDUINO_ADAFRUIT_FEATHER_RP2040_THINKINK
@@ -49,11 +57,28 @@ void setup() {
   
   Serial.println();
   Serial.println("Connected to WiFi!");
+  
+  // Initialize and get the time
+  configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+  Serial.println("Time synchronized");
+}
+
+String getFormattedTime() {
+  struct tm timeinfo;
+  if (!getLocalTime(&timeinfo)) {
+    return "Time Error";
+  }
+  
+  char timeString[20];
+  strftime(timeString, sizeof(timeString), "%m/%d %I:%M%p", &timeinfo);
+  return String(timeString);
 }
 
 void loop() {
   if (WiFi.status() == WL_CONNECTED) {
     HTTPClient http;
+    // Build the complete URL
+    String url = String(baseURL) + String(APPID) + String(units);
     http.begin(url);
     
     int httpResponseCode = http.GET();
@@ -70,28 +95,36 @@ void loop() {
       const char* location = doc["name"];
       const char* weatherType = doc["weather"][0]["description"];
       
+      // Get current time
+      String currentTime = getFormattedTime();
+      
       // Clear display and show weather info
       display.clearBuffer();
       
-      // Location (top)
+      // Timestamp (small, upper left)
+      display.setTextSize(1);
+      display.setCursor(0, 0);
+      display.print(currentTime);
+      
+      // Location (top, moved down slightly)
       display.setTextSize(2);
-      display.setCursor(10, 10);
+      display.setCursor(10, 20);
       display.print(location);
       
       // Temperature (middle, large)
       display.setTextSize(4);
-      display.setCursor(10, 40);
+      display.setCursor(10, 50);
       display.print((int)temperature);
       display.print("F");
       
       // Weather type (bottom)
       display.setTextSize(3);
-      display.setCursor(10, 80);
+      display.setCursor(10, 90);
       display.print(weatherType);
       
       display.display();
       
-      Serial.println("Weather updated on display");
+      Serial.println("Weather updated on display at " + currentTime);
       
     } else {
       Serial.println("Error getting weather data");
@@ -100,6 +133,6 @@ void loop() {
     http.end();
   }
   
-  // Update every 10 seconds
-  delay(10000);
+  // Update every 10 minutes (600 seconds) to be more reasonable for e-ink
+  delay(600000);
 }
