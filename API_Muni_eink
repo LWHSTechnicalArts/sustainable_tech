@@ -51,7 +51,7 @@ const int daylightOffset_sec = 3600;   // DST offset
 ThinkInk_213_Mono_GDEY0213B74 display(EPD_DC, EPD_RESET, EPD_CS, SRAM_CS, EPD_BUSY, EPD_SPI);
 
 // Update interval (2 minutes for E-ink longevity)
-const unsigned long UPDATE_INTERVAL = 120000; // 2 minutes in milliseconds
+const unsigned long UPDATE_INTERVAL = 60000; // 1 minutes in milliseconds
 unsigned long lastUpdate = 0;
 int errorCount = 0;
 
