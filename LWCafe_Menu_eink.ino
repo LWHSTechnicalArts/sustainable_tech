@@ -19,7 +19,7 @@
 
 // WiFi credentials - CHANGE THESE!
 const char* ssid = "StudentNet";
-const char* password = "WIFI PASSWORD!";  // ENTER THE WIFI PASSWORD!
+const char* password = "WIFI PASSWORD HERE";  // ENTER THE WIFI PASSWORD!
 
 // iCalendar feed URL
 // Test URLs you can try:
