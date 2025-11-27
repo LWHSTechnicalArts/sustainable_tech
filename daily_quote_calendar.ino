@@ -3,10 +3,11 @@
 #include <ArduinoJson.h>
 #include <time.h>
 #include "Adafruit_ThinkInk.h"
+#include "Adafruit_MAX1704X.h"
 
 // WiFi credentials
 const char* ssid = "StudentNet";
-const char* password = "";
+const char* password = "PASSWORD HERE";
 
 // Time configuration
 const char* ntpServer = "pool.ntp.org";
@@ -28,12 +29,20 @@ const char* quoteAPI = "https://api.quotable.io/random";
 #define EPD_SPI &SPI
 
 ThinkInk_213_Mono_GDEY0213B74 display(EPD_DC, EPD_RESET, EPD_CS, SRAM_CS, EPD_BUSY, EPD_SPI);
+Adafruit_MAX17048 maxlipo;
 
 void setup() {
   Serial.begin(115200);
   delay(2000);
   
   Serial.println("\n\n=== Starting daily quote display ===");
+  
+  // Initialize battery monitor
+  if (!maxlipo.begin()) {
+    Serial.println(F("Could not find MAX17048 battery monitor"));
+  } else {
+    Serial.println(F("Found MAX17048 battery monitor"));
+  }
   
   // Initialize display
   Serial.println("Initializing E-ink display...");
@@ -155,13 +164,18 @@ void displayDailyQuote() {
   display.clearBuffer();
   display.setTextColor(EPD_BLACK);
   
-  // Get current time
-  String currentTime = getFormattedTime();
-  
-  // Timestamp (small, upper left)
-  display.setTextSize(1);
-  display.setCursor(0, 0);
-  display.print(currentTime);
+// Battery percentage (upper right corner)
+float batteryPercent = maxlipo.cellPercent();
+display.setTextSize(1);
+if (!isnan(batteryPercent)) {
+  display.setCursor(display.width() - 80, 0);  // Moved left to fit "Battery: "
+  display.print("Battery: ");
+  display.print(batteryPercent, 0);
+  display.print("%");
+  Serial.print("Battery: ");
+  Serial.print(batteryPercent, 1);
+  Serial.println("%");
+}
   
   // Get and display date
   struct tm timeinfo;
@@ -172,10 +186,12 @@ void displayDailyQuote() {
     strftime(dayStr, sizeof(dayStr), "%A", &timeinfo);
     strftime(dateStr, sizeof(dateStr), "%B %d", &timeinfo);
     
+    // Display day of week (large)
     display.setTextSize(3);
     display.setCursor(10, 15);
     display.print(dayStr);
     
+    // Display date (medium)
     display.setTextSize(2);
     display.setCursor(10, 40);
     display.print(dateStr);
