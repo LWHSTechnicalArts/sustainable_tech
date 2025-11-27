@@ -5,9 +5,13 @@
 #include "Adafruit_ThinkInk.h"
 #include "Adafruit_MAX1704X.h"
 
+// Include fonts
+#include <Fonts/FreeSansBold18pt7b.h>
+#include <Fonts/FreeSansBold12pt7b.h>
+
 // WiFi credentials
 const char* ssid = "StudentNet";
-const char* password = "PASSWORD HERE";
+const char* password = "PASSWORD";
 
 // Time configuration
 const char* ntpServer = "pool.ntp.org";
@@ -164,18 +168,19 @@ void displayDailyQuote() {
   display.clearBuffer();
   display.setTextColor(EPD_BLACK);
   
-// Battery percentage (upper right corner)
-float batteryPercent = maxlipo.cellPercent();
-display.setTextSize(1);
-if (!isnan(batteryPercent)) {
-  display.setCursor(display.width() - 80, 0);  // Moved left to fit "Battery: "
-  display.print("Battery: ");
-  display.print(batteryPercent, 0);
-  display.print("%");
-  Serial.print("Battery: ");
-  Serial.print(batteryPercent, 1);
-  Serial.println("%");
-}
+  // Battery percentage (upper right corner) - default font
+  display.setFont();
+  float batteryPercent = maxlipo.cellPercent();
+  display.setTextSize(1);
+  if (!isnan(batteryPercent)) {
+    display.setCursor(display.width() - 80, 0);
+    display.print("Battery: ");
+    display.print(batteryPercent, 0);
+    display.print("%");
+    Serial.print("Battery: ");
+    Serial.print(batteryPercent, 1);
+    Serial.println("%");
+  }
   
   // Get and display date
   struct tm timeinfo;
@@ -186,14 +191,14 @@ if (!isnan(batteryPercent)) {
     strftime(dayStr, sizeof(dayStr), "%A", &timeinfo);
     strftime(dateStr, sizeof(dateStr), "%B %d", &timeinfo);
     
-    // Display day of week (large)
-    display.setTextSize(3);
-    display.setCursor(10, 15);
+    // Display day of week (FreeSansBold 18pt)
+    display.setFont(&FreeSansBold18pt7b);
+    display.setCursor(10, 30);
     display.print(dayStr);
     
-    // Display date (medium)
-    display.setTextSize(2);
-    display.setCursor(10, 40);
+    // Display date (FreeSansBold 12pt)
+    display.setFont(&FreeSansBold12pt7b);
+    display.setCursor(10, 52);
     display.print(dateStr);
     
     Serial.print("Date: ");
@@ -202,11 +207,13 @@ if (!isnan(batteryPercent)) {
     Serial.println(dateStr);
   } else {
     Serial.println("Could not get time");
-    display.setTextSize(2);
-    display.setCursor(10, 15);
+    display.setFont(&FreeSansBold12pt7b);
+    display.setCursor(10, 30);
     display.print("Time N/A");
   }
   
+  // Draw separator line (reset to default font for line drawing)
+  display.setFont();
   display.drawLine(0, 65, display.width(), 65, EPD_BLACK);
   
   // Get and display quote
@@ -253,12 +260,13 @@ if (!isnan(batteryPercent)) {
     author = "Unknown";
   }
   
-  // Display quote with word wrapping
+  // Display quote with word wrapping (default font - small and readable)
+  display.setFont();
   display.setTextSize(1);
   int yPos = 73;
   int lineHeight = 10;
   int maxWidth = display.width() - 20;
-  int maxLines = 3;
+  int maxLines = 4;  // Can fit 4 lines with smaller font
   int lineCount = 0;
   
   String words[150];
@@ -301,7 +309,8 @@ if (!isnan(batteryPercent)) {
     yPos += lineHeight + 3;
   }
   
-  if (author.length() > 0 && yPos < 110) {
+  // Display author
+  if (author.length() > 0 && yPos < 115) {
     String truncatedAuthor = author;
     if (truncatedAuthor.length() > 25) {
       truncatedAuthor = truncatedAuthor.substring(0, 22) + "...";
