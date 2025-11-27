@@ -19,22 +19,13 @@ const int daylightOffset_sec = 3600; // DST offset
 // Quote API
 const char* quoteAPI = "https://api.quotable.io/random";
 
-// E-ink display setup
-#ifdef ARDUINO_ADAFRUIT_FEATHER_RP2040_THINKINK
-#define EPD_DC PIN_EPD_DC
-#define EPD_CS PIN_EPD_CS
-#define EPD_BUSY PIN_EPD_BUSY
-#define SRAM_CS -1
-#define EPD_RESET PIN_EPD_RESET
-#define EPD_SPI &SPI1
-#else
+// E-ink display pins
 #define EPD_DC 10
 #define EPD_CS 9
 #define EPD_BUSY -1
 #define SRAM_CS 6
 #define EPD_RESET -1
 #define EPD_SPI &SPI
-#endif
 
 ThinkInk_213_Mono_GDEY0213B74 display(EPD_DC, EPD_RESET, EPD_CS, SRAM_CS, EPD_BUSY, EPD_SPI);
 
