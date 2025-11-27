@@ -2,21 +2,17 @@
  * ESP32-S3 Feather Muni Tracker with 2.13" E-ink Display
  * Arduino IDE version for ESP32-S3 Feather + 2.13" E-ink FeatherWing
  * 
- * Required Libraries (install via Library Manager):
- * - Adafruit GFX Library
- * - Adafruit ThinkInk (replaces old EPD library)
- * - ArduinoJson
- * - WiFi (built-in with ESP32)
- * - HTTPClient (built-in with ESP32)
- * 
- * Board: Select "Adafruit Feather ESP32-S3" in Arduino IDE
- */
 
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 #include <time.h>
 #include "Adafruit_ThinkInk.h"
+
+// Include fonts
+#include <Fonts/FreeSerif18pt7b.h>
+#include <Fonts/FreeSerif12pt7b.h>
+#include <Fonts/FreeSerif9pt7b.h>
 
 // WiFi credentials - CHANGE THESE!
 const char* ssid = "StudentNet";
@@ -41,8 +37,8 @@ const int daylightOffset_sec = 3600;   // DST offset
 // Initialize the 2.13" monochrome display
 ThinkInk_213_Mono_GDEY0213B74 display(EPD_DC, EPD_RESET, EPD_CS, SRAM_CS, EPD_BUSY, EPD_SPI);
 
-// Update interval (2 minutes for E-ink longevity)
-const unsigned long UPDATE_INTERVAL = 60000; // 1 minutes in milliseconds
+// Update interval (1 minute)
+const unsigned long UPDATE_INTERVAL = 60000; // 1 minute in milliseconds
 unsigned long lastUpdate = 0;
 int errorCount = 0;
 
@@ -194,46 +190,44 @@ void updateDisplay() {
   display.clearBuffer();
   display.setTextColor(EPD_BLACK);
   
-  // Get current time (like your weather example)
+  // Get current time
   String currentTime = getFormattedTime();
   
-  // Timestamp (small, upper left)
+  // Timestamp (small, upper left) - default font
+  display.setFont();
   display.setTextSize(1);
   display.setCursor(0, 0);
   display.print(currentTime);
   
-  // Title (top, moved down slightly)
-  display.setTextSize(2);
-  display.setCursor(10, 15);
-  display.print("MUNI TRACKER");
+  // Title - FreeSerif 18pt
+  display.setFont(&FreeSerif18pt7b);
+  display.setCursor(10, 30);
+  display.print("MUNI");
   
-  // Route info
-  display.setTextSize(2);
-  display.setCursor(10, 35);
-  display.print("Route: ");
+  // Route info - FreeSerif 12pt
+  display.setFont(&FreeSerif12pt7b);
+  display.setCursor(10, 50);
+  display.print("Route ");
   display.print(muniRoute);
   
-  // ETA - large text for visibility (following your weather pattern)
-  display.setTextSize(4);
-  display.setCursor(10, 55);
+  // ETA - FreeSerif 18pt (large for visibility)
+  display.setFont(&FreeSerif18pt7b);
   if (muniEta == "0") {
-    display.setTextSize(3);
-    display.setCursor(10, 55);
+    display.setCursor(10, 80);
     display.print("ARRIVING!");
   } else if (muniEta == "N/A") {
-    display.setTextSize(3);
-    display.setCursor(10, 55);
+    display.setCursor(10, 80);
     display.print("No ETA");
   } else {
+    display.setCursor(10, 80);
     display.print(muniEta);
-    display.setTextSize(2);
+    display.setFont(&FreeSerif12pt7b);
     display.print(" min");
   }
   
-  // Stop info (bottom, smaller text)
-  display.setTextSize(1);
-  display.setCursor(10, 90);
-  display.print("Stop: ");
+  // Stop info (bottom) - FreeSerif 9pt
+  display.setFont(&FreeSerif9pt7b);
+  display.setCursor(10, 105);
   
   // Truncate long stop names to fit display
   String truncatedStop = muniStop;
@@ -242,42 +236,55 @@ void updateDisplay() {
   }
   display.print(truncatedStop);
   
-  // Refresh display (this takes 2-3 seconds)
+  // Reset font and refresh display
+  display.setFont();
   display.display();
   Serial.println("E-ink display updated at " + currentTime);
 }
 
 void showStartupScreen() {
   display.clearBuffer();
-  display.setTextSize(2);
   display.setTextColor(EPD_BLACK);
-  display.setCursor(10, 20);
+  
+  display.setFont(&FreeSerif18pt7b);
+  display.setCursor(10, 35);
   display.print("SF MUNI");
-  display.setCursor(10, 40);
+  
+  display.setFont(&FreeSerif12pt7b);
+  display.setCursor(10, 60);
   display.print("TRACKER");
+  
+  display.setFont();
   display.setTextSize(1);
-  display.setCursor(10, 70);
+  display.setCursor(10, 80);
   display.print("Starting up...");
-  display.setCursor(10, 85);
+  display.setCursor(10, 95);
   display.print("Connecting to WiFi...");
+  
   display.display();
 }
 
 void showErrorScreen(String errorMsg) {
   display.clearBuffer();
-  display.setTextSize(2);
   display.setTextColor(EPD_BLACK);
-  display.setCursor(10, 15);
-  display.print("MUNI TRACKER");
   
+  // Title - FreeSerif 18pt
+  display.setFont(&FreeSerif18pt7b);
+  display.setCursor(10, 30);
+  display.print("MUNI");
+  
+  // Error message - default font
+  display.setFont();
   display.setTextSize(1);
-  display.setCursor(10, 40);
-  display.print("ERROR: " + errorMsg);
+  display.setCursor(10, 50);
+  display.print("ERROR:");
+  display.setCursor(10, 62);
+  display.print(errorMsg);
   
-  display.setCursor(10, 55);
-  display.print("Retrying in 2 minutes...");
+  display.setCursor(10, 80);
+  display.print("Retrying in 1 min...");
   
-  display.setCursor(10, 75);
+  display.setCursor(10, 100);
   display.print("Time: " + getFormattedTime());
   
   display.display();
