@@ -1,5 +1,3 @@
-//to program during deep sleep, hold boot when uploading
-
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
@@ -15,14 +13,13 @@ const char* ntpServer = "pool.ntp.org";
 const long gmtOffset_sec = -28800;  // PST = UTC-8 hours
 const int daylightOffset_sec = 3600; // DST offset
 
-// Sleep duration (24 hours in microseconds)
+// Sleep duration
 #define uS_TO_S_FACTOR 1000000ULL
-#define TIME_TO_SLEEP  86400  // 24 hours in seconds
 
 // Quote API
 const char* quoteAPI = "https://api.quotable.io/random";
 
-// E-ink display setup 
+// E-ink display setup
 #ifdef ARDUINO_ADAFRUIT_FEATHER_RP2040_THINKINK
 #define EPD_DC PIN_EPD_DC
 #define EPD_CS PIN_EPD_CS
@@ -39,7 +36,6 @@ const char* quoteAPI = "https://api.quotable.io/random";
 #define EPD_SPI &SPI
 #endif
 
-// Initialize the 2.13" monochrome display 
 ThinkInk_213_Mono_GDEY0213B74 display(EPD_DC, EPD_RESET, EPD_CS, SRAM_CS, EPD_BUSY, EPD_SPI);
 
 void setup() {
@@ -48,21 +44,17 @@ void setup() {
   
   Serial.println("\n\n=== Starting daily quote display ===");
   
-  // Initialize display 
+  // Initialize display
   Serial.println("Initializing E-ink display...");
   display.begin(THINKINK_MONO);
   display.clearBuffer();
   display.setTextColor(EPD_BLACK);
-  Serial.println("Display initialized");
   
   // Show startup message
   display.setTextSize(2);
   display.setCursor(10, 50);
   display.print("Loading...");
-  Serial.println("Updating display...");
   display.display();
-  Serial.println("Startup screen shown");
-  
   delay(2000);
   
   // Connect to WiFi
@@ -89,21 +81,57 @@ void setup() {
   // Get and display quote
   displayDailyQuote();
   
+  // Calculate seconds until next midnight
+  uint64_t sleepTime = calculateSecondsUntilMidnight();
+  
+  Serial.print("Current time: ");
+  Serial.println(getFormattedTime());
+  Serial.print("Sleeping for ");
+  Serial.print(sleepTime);
+  Serial.print(" seconds (");
+  Serial.print(sleepTime / 3600.0);
+  Serial.println(" hours) until midnight");
+  
   // Disconnect WiFi to save power
   Serial.println("Disconnecting WiFi...");
   WiFi.disconnect(true);
   WiFi.mode(WIFI_OFF);
   
-  // Go to deep sleep for 24 hours
-  Serial.println("Going to deep sleep for 24 hours...");
+  // Go to deep sleep until midnight
+  Serial.println("Going to deep sleep...");
   Serial.flush();
   
-  esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
+  esp_sleep_enable_timer_wakeup(sleepTime * uS_TO_S_FACTOR);
   esp_deep_sleep_start();
 }
 
 void loop() {
   // Never reached due to deep sleep
+}
+
+uint64_t calculateSecondsUntilMidnight() {
+  struct tm timeinfo;
+  if (!getLocalTime(&timeinfo)) {
+    Serial.println("Failed to get time, defaulting to 24 hours");
+    return 86400; // Default to 24 hours if we can't get time
+  }
+  
+  // Current time in seconds since midnight
+  int currentSeconds = timeinfo.tm_hour * 3600 + timeinfo.tm_min * 60 + timeinfo.tm_sec;
+  
+  // Seconds until midnight
+  int secondsUntilMidnight = 86400 - currentSeconds;
+  
+  Serial.print("Current time: ");
+  Serial.print(timeinfo.tm_hour);
+  Serial.print(":");
+  Serial.print(timeinfo.tm_min);
+  Serial.print(":");
+  Serial.println(timeinfo.tm_sec);
+  Serial.print("Seconds until midnight: ");
+  Serial.println(secondsUntilMidnight);
+  
+  return secondsUntilMidnight;
 }
 
 void connectWiFi() {
@@ -136,10 +164,10 @@ void displayDailyQuote() {
   display.clearBuffer();
   display.setTextColor(EPD_BLACK);
   
-  // Get current time (like your Muni tracker)
+  // Get current time
   String currentTime = getFormattedTime();
   
-  // Timestamp (small, upper left - like your Muni tracker)
+  // Timestamp (small, upper left)
   display.setTextSize(1);
   display.setCursor(0, 0);
   display.print(currentTime);
@@ -150,17 +178,13 @@ void displayDailyQuote() {
     char dayStr[15];
     char dateStr[30];
     
-    // Format: "Monday"
     strftime(dayStr, sizeof(dayStr), "%A", &timeinfo);
-    // Format: "November 26"
     strftime(dateStr, sizeof(dateStr), "%B %d", &timeinfo);
     
-    // Display day of week (large)
     display.setTextSize(3);
     display.setCursor(10, 15);
     display.print(dayStr);
     
-    // Display date (medium)
     display.setTextSize(2);
     display.setCursor(10, 40);
     display.print(dateStr);
@@ -176,7 +200,6 @@ void displayDailyQuote() {
     display.print("Time N/A");
   }
   
-  // Draw separator line
   display.drawLine(0, 65, display.width(), 65, EPD_BLACK);
   
   // Get and display quote
@@ -196,9 +219,7 @@ void displayDailyQuote() {
     
     if (httpResponseCode > 0) {
       String response = http.getString();
-      Serial.println("Response received");
       
-      // Parse JSON
       DynamicJsonDocument doc(2048);
       DeserializationError error = deserializeJson(doc, response);
       
@@ -210,36 +231,29 @@ void displayDailyQuote() {
         Serial.println("Author: " + author);
       } else {
         quote = "Error parsing quote";
-        Serial.print("JSON parse error: ");
-        Serial.println(error.c_str());
       }
     } else {
       quote = "Failed to fetch quote";
-      Serial.print("HTTP Error: ");
-      Serial.println(httpResponseCode);
     }
     
     http.end();
   } else {
     quote = "No WiFi connection";
-    Serial.println("No WiFi - cannot fetch quote");
   }
   
-  // Fallback quote if needed
   if (quote.length() == 0) {
     quote = "Make each day count.";
     author = "Unknown";
   }
   
-  // Display quote with word wrapping 
+  // Display quote with word wrapping
   display.setTextSize(1);
   int yPos = 73;
   int lineHeight = 10;
-  int maxWidth = display.width() - 20;  // Leave margins
-  int maxLines = 3;  // Limit to 3 lines for the quote
+  int maxWidth = display.width() - 20;
+  int maxLines = 3;
   int lineCount = 0;
   
-  // Split quote into words
   String words[150];
   int wordCount = 0;
   int startPos = 0;
@@ -253,7 +267,6 @@ void displayDailyQuote() {
     }
   }
   
-  // Display words with wrapping
   String currentLine = "";
   for (int i = 0; i < wordCount && lineCount < maxLines; i++) {
     String testLine = currentLine;
@@ -265,7 +278,6 @@ void displayDailyQuote() {
     display.getTextBounds(testLine.c_str(), 0, 0, &x1, &y1, &w, &h);
     
     if (w > maxWidth && currentLine.length() > 0) {
-      // Print current line
       display.setCursor(10, yPos);
       display.print(currentLine);
       yPos += lineHeight;
@@ -276,16 +288,13 @@ void displayDailyQuote() {
     }
   }
   
-  // Print remaining line
   if (currentLine.length() > 0 && lineCount < maxLines) {
     display.setCursor(10, yPos);
     display.print(currentLine);
     yPos += lineHeight + 3;
   }
   
-  // Display author 
   if (author.length() > 0 && yPos < 110) {
-    // Truncate long author names
     String truncatedAuthor = author;
     if (truncatedAuthor.length() > 25) {
       truncatedAuthor = truncatedAuthor.substring(0, 22) + "...";
@@ -296,7 +305,6 @@ void displayDailyQuote() {
     display.print(truncatedAuthor);
   }
   
-  // Update display 
   Serial.println("Updating E-ink display...");
   display.display();
   Serial.println("Display update complete!");
@@ -305,7 +313,6 @@ void displayDailyQuote() {
 String getFormattedTime() {
   struct tm timeinfo;
   if (!getLocalTime(&timeinfo)) {
-    // If NTP time isn't available, use millis()
     unsigned long minutes = millis() / 60000;
     return String(minutes) + "m";
   }
