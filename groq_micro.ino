@@ -211,7 +211,7 @@ void renderDisplay(Weather& w, String advice) {
 void showStatus(String msg) {
   display.clearBuffer();
   display.setTextColor(EPD_BLACK);
-  display.setTextSize(1);
+  display.setTextSize(2);
   display.setCursor(4, 55);
   display.print(msg);
   display.display();
